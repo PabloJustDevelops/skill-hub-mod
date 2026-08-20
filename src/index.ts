@@ -12,8 +12,12 @@ async function listInstalled(cmd: ModApi): Promise<InstalledSkill[]> {
 		command: 'npx',
 		args: ['--yes', 'skills', 'list', '-g', '--json'],
 	});
+	const raw = r.stdout.trim();
+	if (!raw) return [];
 	try {
-		return JSON.parse(r.stdout) as InstalledSkill[];
+		const parsed = JSON.parse(raw) as InstalledSkill[];
+		if (!Array.isArray(parsed)) return [];
+		return parsed.filter((s) => typeof s.name === 'string' && typeof s.source === 'string');
 	} catch {
 		return [];
 	}

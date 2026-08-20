@@ -60,9 +60,17 @@ export function detectStack(cwd: string): DetectResult {
 		evidence.push(ev);
 	};
 
-	const pkg = readJsonSafe(join(cwd, 'package.json'));
+	if (!cwd || typeof cwd !== 'string') return { tags, evidence };
+	let safeCwd = cwd;
+	try {
+		if (!existsSync(cwd)) return { tags, evidence };
+	} catch {
+		return { tags, evidence };
+	}
 
-	if (existsSync(join(cwd, 'astro.config.mjs')) || existsSync(join(cwd, 'astro.config.ts'))) {
+	const pkg = readJsonSafe(join(safeCwd, 'package.json'));
+
+	if (existsSync(join(safeCwd, 'astro.config.mjs')) || existsSync(join(safeCwd, 'astro.config.ts'))) {
 		push('astro', 'astro.config.*');
 	}
 	if (hasAnyDep(pkg, ['astro'])) push('astro', 'package.json: astro');
@@ -71,16 +79,16 @@ export function detectStack(cwd: string): DetectResult {
 	if (hasAnyDep(pkg, ['vue', 'nuxt'])) push('vue', 'package.json: vue/nuxt');
 	if (hasAnyDep(pkg, ['svelte', '@sveltejs/kit'])) push('svelte', 'package.json: svelte');
 	if (hasAnyDep(pkg, ['tailwindcss'])) push('tailwind', 'package.json: tailwindcss');
-	if (existsSync(join(cwd, 'tsconfig.json'))) push('typescript', 'tsconfig.json');
+	if (existsSync(join(safeCwd, 'tsconfig.json'))) push('typescript', 'tsconfig.json');
 	if (hasAnyDep(pkg, ['typescript'])) push('typescript', 'package.json: typescript');
 	if (hasAnyDep(pkg, ['vitest', 'jest', '@testing-library/react'])) push('testing', 'package.json: testing lib');
 	if (hasAnyDep(pkg, ['playwright', '@playwright/test', 'cypress'])) push('e2e', 'package.json: e2e');
-	if (existsSync(join(cwd, 'tests')) || existsSync(join(cwd, '__tests__'))) push('testing', 'tests/ directory');
+	if (existsSync(join(safeCwd, 'tests')) || existsSync(join(safeCwd, '__tests__'))) push('testing', 'tests/ directory');
 	if (hasAnyDep(pkg, ['pypdf', 'pdfplumber', 'jspdf', 'pdf-lib'])) push('pdf', 'package.json: pdf lib');
-	if (existsSync(join(cwd, 'pyproject.toml')) || existsSync(join(cwd, 'requirements.txt'))) {
+	if (existsSync(join(safeCwd, 'pyproject.toml')) || existsSync(join(safeCwd, 'requirements.txt'))) {
 		const txt = (() => {
 			try {
-				return readFileSync(join(cwd, 'requirements.txt'), 'utf-8');
+				return readFileSync(join(safeCwd, 'requirements.txt'), 'utf-8');
 			} catch {
 				return '';
 			}
@@ -90,10 +98,10 @@ export function detectStack(cwd: string): DetectResult {
 	}
 	if (hasAnyDep(pkg, ['openai', '@ai-sdk/openai', 'firecrawl'])) push('ai', 'package.json: ai');
 	if (hasAnyDep(pkg, ['prisma', '@prisma/client', 'drizzle-orm', 'postgres', 'pg'])) push('database', 'package.json: db');
-	if (existsSync(join(cwd, 'prisma'))) push('database', 'prisma/');
+	if (existsSync(join(safeCwd, 'prisma'))) push('database', 'prisma/');
 	if (hasAnyDep(pkg, ['next-sitemap', 'next-seo'])) push('seo', 'package.json: seo');
-	if (existsSync(join(cwd, '.github'))) push('deployment', '.github/');
-	if (existsSync(join(cwd, 'Dockerfile'))) push('deployment', 'Dockerfile');
+	if (existsSync(join(safeCwd, '.github'))) push('deployment', '.github/');
+	if (existsSync(join(safeCwd, 'Dockerfile'))) push('deployment', 'Dockerfile');
 	if (hasAnyDep(pkg, ['typedoc', 'docusaurus', '@astrojs/starlight'])) push('docs', 'package.json: docs');
 
 	if (tags.includes('typescript') || tags.includes('react') || tags.includes('nextjs') || tags.includes('vue')) {
@@ -123,14 +131,15 @@ export const STACK_TO_SKILLS: Record<StackTag, SkillRec[]> = {
 };
 
 export function recommendationsFor(
-	detected: DetectResult,
+	detected: DetectResult | null | undefined,
 	installedNames: Set<string>,
 	installedSources?: Set<string>,
 ): SkillRec[] {
+	if (!detected || !Array.isArray(detected.tags)) return [];
 	const seen = new Set<string>();
 	const out: SkillRec[] = [];
 	for (const tag of detected.tags) {
-		for (const rec of STACK_TO_SKILLS[tag] ?? []) {
+		for (const rec of STACK_TO_SKILLS[tag as StackTag] ?? []) {
 			if (installedNames.has(rec.name)) continue;
 			if (installedSources?.has(rec.source)) continue;
 			const key = `${rec.source}::${rec.name}`;
@@ -143,18 +152,22 @@ export function recommendationsFor(
 }
 
 export function formatRecommendations(
-	recs: SkillRec[],
-	detected: DetectResult,
+	recs: SkillRec[] | null | undefined,
+	detected: DetectResult | null | undefined,
 	verbose: boolean,
 	cwd: string,
 ): string {
-	const header = `Project: ${cwd}\nDetected stack: ${detected.tags.join(', ') || '(none)'}`;
-	const evidence = verbose ? `\nEvidence: ${detected.evidence.join(', ')}` : '';
-	if (recs.length === 0) {
+	const safeRecs = Array.isArray(recs) ? recs : [];
+	const safeTags = detected?.tags ?? [];
+	const safeEvidence = detected?.evidence ?? [];
+	const safeCwd = typeof cwd === 'string' && cwd ? cwd : '(unknown)';
+	const header = `Project: ${safeCwd}\nDetected stack: ${safeTags.join(', ') || '(none)'}`;
+	const evidence = verbose ? `\nEvidence: ${safeEvidence.join(', ')}` : '';
+	if (safeRecs.length === 0) {
 		return `${header}${evidence}\n\nNo new recommendations — you already have the relevant skills installed.\nBrowse more at https://skills.sh/`;
 	}
-	const lines = recs.map(
+	const lines = safeRecs.map(
 		(r) => `- ${r.name} (${r.source}) — ${r.reason}\n  npx skills add ${r.source} --skill ${r.name} -g -y\n  https://skills.sh/${r.source}`,
 	);
-	return `${header}${evidence}\n\nRecommended skills (${recs.length}):\n${lines.join('\n\n')}\n\nSuggestions only — nothing is installed automatically.`;
+	return `${header}${evidence}\n\nRecommended skills (${safeRecs.length}):\n${lines.join('\n\n')}\n\nSuggestions only — nothing is installed automatically.`;
 }
