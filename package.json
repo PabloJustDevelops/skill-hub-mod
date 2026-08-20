@@ -1,0 +1,10 @@
+{
+  "name": "skill-hub-mod",
+  "version": "0.2.0",
+  "description": "Skill Hub for Command Code — keep skills up to date and get stack-aware recommendations",
+  "private": false,
+  "license": "MIT",
+  "commandcode": {
+    "mods": ["./src/index.ts"]
+  }
+}
