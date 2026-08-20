@@ -105,34 +105,37 @@ export function detectStack(cwd: string): DetectResult {
 
 export const STACK_TO_SKILLS: Record<StackTag, SkillRec[]> = {
 	astro: [{ name: 'astro-framework', source: 'delineas/astro-framework-agents', reason: 'Astro project detected', tag: 'astro' }],
-	nextjs: [{ name: 'vercel-labs/agent-skills', source: 'vercel-labs/agent-skills', reason: 'Next.js detected', tag: 'nextjs' }],
-	react: [{ name: 'vercel-labs/agent-skills', source: 'vercel-labs/agent-skills', reason: 'React detected', tag: 'react' }],
-	vue: [{ name: 'vercel-labs/agent-skills', source: 'vercel-labs/agent-skills', reason: 'Vue/Nuxt detected', tag: 'vue' }],
-	svelte: [{ name: 'vercel-labs/agent-skills', source: 'vercel-labs/agent-skills', reason: 'Svelte detected', tag: 'svelte' }],
-	tailwind: [{ name: 'vercel-labs/agent-skills', source: 'vercel-labs/agent-skills', reason: 'Tailwind detected', tag: 'tailwind' }],
+	nextjs: [{ name: 'vercel-react-best-practices', source: 'vercel-labs/agent-skills', reason: 'Next.js detected', tag: 'nextjs' }],
+	react: [{ name: 'vercel-react-best-practices', source: 'vercel-labs/agent-skills', reason: 'React detected', tag: 'react' }],
+	vue: [{ name: 'vercel-react-best-practices', source: 'vercel-labs/agent-skills', reason: 'Vue/Nuxt detected', tag: 'vue' }],
+	svelte: [{ name: 'vercel-react-best-practices', source: 'vercel-labs/agent-skills', reason: 'Svelte detected', tag: 'svelte' }],
+	tailwind: [{ name: 'vercel-react-best-practices', source: 'vercel-labs/agent-skills', reason: 'Tailwind detected', tag: 'tailwind' }],
 	typescript: [],
-	testing: [{ name: 'playwright-testing', source: 'anthropics/skills', reason: 'Testing detected', tag: 'testing' }],
-	e2e: [{ name: 'playwright-testing', source: 'anthropics/skills', reason: 'E2E detected', tag: 'e2e' }],
+	testing: [{ name: 'playwright-testing', source: 'laurigates/claude-plugins', reason: 'Testing detected', tag: 'testing' }],
+	e2e: [{ name: 'playwright-testing', source: 'laurigates/claude-plugins', reason: 'E2E detected', tag: 'e2e' }],
 	pdf: [{ name: 'pdf', source: 'anthropics/skills', reason: 'PDF detected', tag: 'pdf' }],
 	a11y: [{ name: 'accessibility', source: 'addyosmani/web-quality-skills', reason: 'Frontend stack → accessibility', tag: 'a11y' }],
-	seo: [{ name: 'seo-audit', source: 'anthropics/skills', reason: 'SEO detected', tag: 'seo' }],
-	database: [{ name: 'orchestration', source: 'anthropics/skills', reason: 'Database detected', tag: 'database' }],
-	ai: [{ name: 'firecrawl', source: 'anthropics/skills', reason: 'AI/web stack detected', tag: 'ai' }],
+	seo: [{ name: 'seo', source: 'addyosmani/web-quality-skills', reason: 'SEO detected', tag: 'seo' }],
+	database: [{ name: 'orchestration', source: 'stablyai/orca', reason: 'Database detected', tag: 'database' }],
+	ai: [{ name: 'firecrawl', source: 'firecrawl/cli', reason: 'AI/web stack detected', tag: 'ai' }],
 	docs: [{ name: 'docx', source: 'anthropics/skills', reason: 'Docs detected', tag: 'docs' }],
-	deployment: [{ name: 'wrangler', source: 'anthropics/skills', reason: 'Deploy/CI detected', tag: 'deployment' }],
+	deployment: [{ name: 'wrangler', source: 'cloudflare/skills', reason: 'Deploy/CI detected', tag: 'deployment' }],
 };
 
 export function recommendationsFor(
 	detected: DetectResult,
 	installedNames: Set<string>,
+	installedSources?: Set<string>,
 ): SkillRec[] {
 	const seen = new Set<string>();
 	const out: SkillRec[] = [];
 	for (const tag of detected.tags) {
 		for (const rec of STACK_TO_SKILLS[tag] ?? []) {
 			if (installedNames.has(rec.name)) continue;
-			if (seen.has(rec.name)) continue;
-			seen.add(rec.name);
+			if (installedSources?.has(rec.source)) continue;
+			const key = `${rec.source}::${rec.name}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
 			out.push(rec);
 		}
 	}

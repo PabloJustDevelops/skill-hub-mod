@@ -54,7 +54,7 @@ async function handleSkillsCommand(cmd: ModApi, rawArgs: string): Promise<{ mess
 	if (subLower === 'check') {
 		const data = await listInstalled(cmd);
 		const detected = detectStack(cmd.cwd);
-		const recs = recommendationsFor(detected, new Set(data.map((d) => d.name)));
+		const recs = recommendationsFor(detected, new Set(data.map((d) => d.name)), new Set(data.map((d) => d.source)));
 		const lines =
 			data.length === 0
 				? 'No skills installed.'
@@ -69,8 +69,9 @@ async function handleSkillsCommand(cmd: ModApi, rawArgs: string): Promise<{ mess
 		const verbose = rest.includes('--verbose') || rest.includes('-v');
 		const data = await listInstalled(cmd);
 		const installedNames = new Set(data.map((d) => d.name));
+		const installedSources = new Set(data.map((d) => d.source));
 		const detected = detectStack(cmd.cwd);
-		const recs = recommendationsFor(detected, installedNames);
+		const recs = recommendationsFor(detected, installedNames, installedSources);
 		return { message: formatRecommendations(recs, detected, verbose, cmd.cwd) };
 	}
 
@@ -155,7 +156,7 @@ export default function (cmd: ModApi): void {
 
 				if (cmd.getFlag('autoRecommend') === true) {
 					const data = await listInstalled(cmd);
-					const recs = recommendationsFor(detectStack(cmd.cwd), new Set(data.map((d) => d.name)));
+					const recs = recommendationsFor(detectStack(cmd.cwd), new Set(data.map((d) => d.name)), new Set(data.map((d) => d.source)));
 					if (recs.length > 0) {
 						cmd.ui.notify(`Recommended for this project: ${recs.map((r) => r.name).join(', ')} — /skillhub recommend`);
 					}
@@ -231,8 +232,9 @@ export default function (cmd: ModApi): void {
 				const verbose = input.verbose === true;
 				const data = await listInstalled(cmd);
 				const installedNames = new Set(data.map((d) => d.name));
+				const installedSources = new Set(data.map((d) => d.source));
 				const detected = detectStack(cmd.cwd);
-				const recs = recommendationsFor(detected, installedNames);
+				const recs = recommendationsFor(detected, installedNames, installedSources);
 				return { ok: true, content: [{ type: 'text', text: formatRecommendations(recs, detected, verbose, cmd.cwd) }] };
 			} catch (e) {
 				return { ok: false, error: String(e) };
